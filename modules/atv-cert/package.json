@@ -1,0 +1,7 @@
+{
+  "name": "atv-cert",
+  "version": "0.1.0",
+  "description": "Native PKCS#12 keychain importer for Android TV Remote pairing",
+  "main": "index.ts",
+  "private": true
+}

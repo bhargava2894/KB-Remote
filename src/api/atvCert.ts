@@ -1,0 +1,124 @@
+/**
+ * Self-signed X.509 client certificate generation for Android TV Remote pairing.
+ *
+ * The TV remembers our cert's public key once we complete pairing. On every
+ * subsequent reconnect, we present the same cert and the TV recognises us
+ * without re-pairing.
+ *
+ * Generated once per app install. Persisted in expo-secure-store.
+ */
+import forge from 'node-forge';
+
+export interface ClientCert {
+  /** PEM-encoded self-signed X.509 certificate. */
+  certPem: string;
+  /** PEM-encoded RSA private key. */
+  keyPem: string;
+}
+
+/** Generates a new 2048-bit RSA self-signed cert. Slow on mobile (~10-30s). */
+export async function generateClientCert(commonName = 'atvremote'): Promise<ClientCert> {
+  const keys = await new Promise<forge.pki.rsa.KeyPair>((resolve, reject) => {
+    forge.pki.rsa.generateKeyPair({ bits: 2048, workers: -1 }, (err, kp) => {
+      if (err) reject(err);
+      else resolve(kp);
+    });
+  });
+
+  const cert = forge.pki.createCertificate();
+  cert.publicKey = keys.publicKey;
+  cert.serialNumber = randomSerial();
+  cert.validity.notBefore = new Date();
+  cert.validity.notAfter = new Date();
+  cert.validity.notAfter.setFullYear(cert.validity.notBefore.getFullYear() + 10);
+
+  const attrs: forge.pki.CertificateField[] = [
+    { name: 'commonName', value: commonName },
+    { name: 'organizationName', value: 'atvremote' },
+  ];
+  cert.setSubject(attrs);
+  cert.setIssuer(attrs);
+
+  cert.setExtensions([
+    { name: 'basicConstraints', cA: false },
+    {
+      name: 'keyUsage',
+      digitalSignature: true,
+      keyEncipherment: true,
+      dataEncipherment: true,
+      keyAgreement: true,
+    },
+    {
+      name: 'extKeyUsage',
+      serverAuth: true,
+      clientAuth: true,
+    },
+  ]);
+
+  cert.sign(keys.privateKey, forge.md.sha256.create());
+
+  return {
+    certPem: forge.pki.certificateToPem(cert),
+    keyPem: forge.pki.privateKeyToPem(keys.privateKey),
+  };
+}
+
+/**
+ * Bundle a PEM cert + PEM RSA private key into a base64-encoded PKCS#12 blob
+ * with the given password. This is the format iOS's SecPKCS12Import accepts,
+ * so the cert and matching private key are kept together as one SecIdentity.
+ */
+export function buildPkcs12Base64(certPem: string, keyPem: string, password: string): string {
+  const cert = forge.pki.certificateFromPem(certPem);
+  const key = forge.pki.privateKeyFromPem(keyPem);
+  const p12Asn1 = forge.pkcs12.toPkcs12Asn1(key, [cert], password, {
+    algorithm: '3des',
+  });
+  const der = forge.asn1.toDer(p12Asn1).getBytes();
+  // Convert binary string to base64.
+  const bytes = new Uint8Array(der.length);
+  for (let i = 0; i < der.length; i++) bytes[i] = der.charCodeAt(i) & 0xff;
+  return Buffer.from(bytes).toString('base64');
+}
+
+function randomSerial(): string {
+  const bytes = forge.random.getBytesSync(16);
+  let hex = forge.util.bytesToHex(bytes);
+  // RFC 5280 says serial must be a positive integer; force high bit to 0.
+  const first = parseInt(hex.slice(0, 2), 16) & 0x7f;
+  hex = first.toString(16).padStart(2, '0') + hex.slice(2);
+  return hex;
+}
+
+/** Extract RSA public-key modulus and exponent as raw bytes for hashing. */
+export function publicKeyBytes(certPem: string): { modulus: Uint8Array; exponent: Uint8Array } {
+  const cert = forge.pki.certificateFromPem(certPem);
+  const pub = cert.publicKey as forge.pki.rsa.PublicKey;
+  return {
+    modulus: bigIntToBytes(pub.n),
+    exponent: bigIntToBytes(pub.e),
+  };
+}
+
+/** Same extraction from a server cert (DER bytes). */
+export function publicKeyBytesFromDer(der: Uint8Array): { modulus: Uint8Array; exponent: Uint8Array } {
+  const asn1 = forge.asn1.fromDer(forge.util.createBuffer(Buffer.from(der).toString('binary')));
+  const cert = forge.pki.certificateFromAsn1(asn1);
+  const pub = cert.publicKey as forge.pki.rsa.PublicKey;
+  return {
+    modulus: bigIntToBytes(pub.n),
+    exponent: bigIntToBytes(pub.e),
+  };
+}
+
+function bigIntToBytes(bn: forge.jsbn.BigInteger): Uint8Array {
+  // forge BigIntegers have toByteArray() that returns a signed two's-complement
+  // representation. Strip any leading 0x00 sign byte so the result matches
+  // OpenSSL's i2d_RSAPublicKey component representation.
+  const arr = bn.toByteArray();
+  let start = 0;
+  if (arr.length > 1 && arr[0] === 0) start = 1;
+  const out = new Uint8Array(arr.length - start);
+  for (let i = 0; i < out.length; i++) out[i] = arr[i + start] & 0xff;
+  return out;
+}

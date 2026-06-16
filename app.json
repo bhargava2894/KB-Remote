@@ -1,0 +1,48 @@
+{
+  "expo": {
+    "name": "KB Remote",
+    "slug": "sony-tv-remote",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "icon": "./assets/icon.png",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.example.sonytvremote",
+      "infoPlist": {
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true,
+          "NSAllowsLocalNetworking": true
+        },
+        "NSLocalNetworkUsageDescription": "Used to send remote control commands to your Sony Bravia TV on the local network.",
+        "NSBonjourServices": [
+          "_androidtvremote2._tcp"
+        ]
+      }
+    },
+    "android": {
+      "package": "com.example.sonytvremote",
+      "usesCleartextTraffic": true
+    },
+    "plugins": [
+      "expo-asset",
+      "expo-dev-client",
+      "expo-secure-store",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "deploymentTarget": "15.1"
+          },
+          "android": {
+            "compileSdkVersion": 35,
+            "targetSdkVersion": 35,
+            "minSdkVersion": 24
+          }
+        }
+      ],
+      "expo-font"
+    ]
+  }
+}
