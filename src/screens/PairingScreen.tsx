@@ -50,6 +50,11 @@ export function PairingScreen({ navigation }: Props) {
       pendingCertsRef.current = null;
       setPhase('generating');
       setStatus('Generating client certificate (this can take 30s)…');
+      
+      // Yield to the React Native UI thread to show the "Generating" state
+      // before forge.pki completely blocks the JS thread for 10-30s.
+      await new Promise(resolve => setTimeout(resolve, 100));
+
       const certs = settings.certPem && settings.keyPem
         ? { certPem: settings.certPem, keyPem: settings.keyPem }
         : await generateClientCert('BraviaRemote');

@@ -128,9 +128,13 @@ export class AtvPairingSession {
     if (!/^[0-9A-F]{4,6}$/.test(cleaned)) {
       throw new Error('Code must be 4-6 hex characters');
     }
-    // The TV displays e.g. "A1B2": the nonce we hash is the last byte ("B2").
-    const nonceHex = cleaned.slice(-2);
-    const nonce = new Uint8Array([parseInt(nonceHex, 16)]);
+    // The TV displays e.g. "1A2B3C" (6 chars) or "A1B2" (4 chars).
+    // The nonce we hash is everything except the first byte (first 2 hex chars).
+    const nonceHex = cleaned.slice(2);
+    const nonce = new Uint8Array(nonceHex.length / 2);
+    for (let i = 0; i < nonceHex.length; i += 2) {
+      nonce[i / 2] = parseInt(nonceHex.slice(i, i + 2), 16);
+    }
 
     const sha = forge.md.sha256.create();
     sha.update(uint8ToBinary(this.clientPubKey.modulus));
@@ -144,7 +148,11 @@ export class AtvPairingSession {
 
     await new Promise<void>((resolve, reject) => {
       this.waiters.onDone = (err) => (err ? reject(err) : resolve());
-      this.sendPairingMessage({ pairingSecret: { secret } });
+      this.sendPairingMessage({
+        protocolVersion: 2,
+        status: PAIRING_STATUS_OK,
+        pairingSecret: { secret },
+      });
     });
   }
 
@@ -175,7 +183,7 @@ export class AtvPairingSession {
       status: PAIRING_STATUS_OK,
       pairingOption: {
         preferredRole: 1, // ROLE_TYPE_INPUT
-        outputEncodings: [{ type: 3, symbolLength: 4 }], // HEXADECIMAL, 4-symbol
+        outputEncodings: [{ type: 3, symbolLength: 6 }], // HEXADECIMAL, 6-symbol
       },
     });
   }
@@ -185,7 +193,7 @@ export class AtvPairingSession {
       protocolVersion: 2,
       status: PAIRING_STATUS_OK,
       pairingConfiguration: {
-        encoding: { type: 3, symbolLength: 4 },
+        encoding: { type: 3, symbolLength: 6 },
         clientRole: 1,
       },
     });
@@ -214,6 +222,7 @@ export class AtvPairingSession {
       return;
     }
     if (this.step === 'option_ack' && obj.pairingOption) {
+      console.log('[atvClient] TV pairingOption:', JSON.stringify(obj.pairingOption));
       // TV echoes its supported pairing options; reply with our config.
       this.sendPairingConfiguration();
       return;
