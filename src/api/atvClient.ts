@@ -279,6 +279,7 @@ export interface RemoteListener {
   onPower?: (active: boolean) => void;
   onVolume?: (level: number, max: number, muted: boolean) => void;
   onCurrentApp?: (appLink: string) => void;
+  onDeviceInfo?: (info: { model: string; vendor: string }) => void;
 }
 
 export class AtvRemoteClient {
@@ -289,6 +290,7 @@ export class AtvRemoteClient {
   private wantConnected = false;
   private listener: RemoteListener = {};
   private lastCommand: { payload: object; time: number } | null = null;
+  public currentDeviceInfo: { model: string; vendor: string } | null = null;
 
   constructor(private host: string, private certs: PairingCerts) {}
 
@@ -328,6 +330,13 @@ export class AtvRemoteClient {
   }
   sendKeyUp(keyCode: number): void {
     this.sendRemote({ remoteKeyInject: { keyCode, direction: 2 /* END_LONG */ } });
+  }
+
+  /** Launch a streaming app on the TV by URI (e.g. https://www.netflix.com/title). */
+  launchApp(uri: string): void {
+    this.sendRemote({
+      remoteAppLinkLaunchRequest: { appLink: uri },
+    });
   }
 
   private openSocket(): void {
@@ -436,6 +445,12 @@ export class AtvRemoteClient {
 
     if (obj.remoteConfigure) {
       console.log('[atvClient] TV sent Configure.');
+      const info = obj.remoteConfigure.deviceInfo;
+      if (info && (info.model || info.vendor)) {
+        const parsed = { model: info.model ?? '', vendor: info.vendor ?? '' };
+        this.currentDeviceInfo = parsed;
+        this.listener.onDeviceInfo?.(parsed);
+      }
       return;
     }
     if (obj.remoteSetActive) {
@@ -497,7 +512,17 @@ export class AtvRemoteClient {
 }
 
 interface RemoteFrameShape {
-  remoteConfigure?: unknown;
+  remoteConfigure?: {
+    code1?: number;
+    deviceInfo?: {
+      model?: string;
+      vendor?: string;
+      unknown1?: number;
+      unknown2?: string;
+      packageName?: string;
+      appVersion?: string;
+    };
+  };
   remoteSetActive?: { active?: number };
   remoteError?: { value?: number; request?: unknown };
   remotePingRequest?: { val1?: number };
