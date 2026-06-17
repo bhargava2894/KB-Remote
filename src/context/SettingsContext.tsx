@@ -8,6 +8,7 @@ import React, {
   useMemo,
   useState,
 } from 'react';
+import type { DiscoveredTV } from '../api/atvDiscovery';
 
 const PLAIN_STORAGE_KEY = '@SonyTVRemote/settings/v2';
 const PAIRING_CONFIRMED_KEY = '@SonyTVRemote/pairingConfirmed/v1';
@@ -33,10 +34,14 @@ interface SettingsContextValue {
   settings: Settings;
   loaded: boolean;
   paired: boolean;
+  discoveredTvs: DiscoveredTV[];
+  connectedDeviceInfo: { model: string; vendor: string } | null;
   updateConnection: (patch: Partial<PlainSettings>) => Promise<void>;
   setCert: (certPem: string, keyPem: string) => Promise<void>;
   markPaired: (paired: boolean) => Promise<void>;
   clearCert: () => Promise<void>;
+  setConnectedDeviceInfo: (info: { model: string; vendor: string } | null) => void;
+  setDiscoveredTvs: (tvs: DiscoveredTV[]) => void;
 }
 
 const SettingsContext = createContext<SettingsContextValue | undefined>(undefined);
@@ -47,6 +52,9 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const [keyPem, setKeyPem] = useState<string | null>(null);
   const [pairingConfirmed, setPairingConfirmed] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const [discoveredTvs, setDiscoveredTvs] = useState<DiscoveredTV[]>([]);
+  const [connectedDeviceInfo, setConnectedDeviceInfo] =
+    useState<{ model: string; vendor: string } | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -110,12 +118,28 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       settings: { ...plain, certPem, keyPem },
       loaded,
       paired: pairingConfirmed && !!certPem && !!keyPem,
+      discoveredTvs,
+      connectedDeviceInfo,
       updateConnection,
       setCert,
       markPaired,
       clearCert,
+      setConnectedDeviceInfo,
+      setDiscoveredTvs,
     }),
-    [plain, certPem, keyPem, loaded, pairingConfirmed, updateConnection, setCert, markPaired, clearCert],
+    [
+      plain,
+      certPem,
+      keyPem,
+      loaded,
+      pairingConfirmed,
+      discoveredTvs,
+      connectedDeviceInfo,
+      updateConnection,
+      setCert,
+      markPaired,
+      clearCert,
+    ],
   );
 
   return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>;
