@@ -81,6 +81,13 @@ public class AtvTlsModule: Module {
         case .ready:
           self.emitConnectWhenReady(connectionId: id, port: port, attempt: 0)
           self.startReceive(id: id, conn: conn)
+        case .waiting(let err):
+          self.sendEvent("error", [
+            "connectionId": id,
+            "message": err.localizedDescription,
+          ])
+          conn.cancel()
+          self.removeConnection(id: id)
         case .failed(let err):
           self.sendEvent("error", [
             "connectionId": id,
