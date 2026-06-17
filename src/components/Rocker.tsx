@@ -47,23 +47,21 @@ export function Rocker({
 const styles = StyleSheet.create({
   wrap: {
     alignItems: 'center',
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: radius.pill,
+    backgroundColor: colors.glassFill,
+    borderRadius: 22,
     padding: spacing.xs,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.glassBorder,
   },
   top: {
-    borderTopLeftRadius: radius.pill,
-    borderTopRightRadius: radius.pill,
-    borderBottomLeftRadius: radius.sm,
-    borderBottomRightRadius: radius.sm,
+    backgroundColor: colors.glassFill,
+    borderRadius: 16,
+    borderWidth: 0,
   },
   bottom: {
-    borderBottomLeftRadius: radius.pill,
-    borderBottomRightRadius: radius.pill,
-    borderTopLeftRadius: radius.sm,
-    borderTopRightRadius: radius.sm,
+    backgroundColor: colors.glassFill,
+    borderRadius: 16,
+    borderWidth: 0,
   },
   label: {
     color: colors.textMuted,
