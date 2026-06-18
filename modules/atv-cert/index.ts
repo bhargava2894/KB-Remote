@@ -2,6 +2,8 @@ import { requireNativeModule } from 'expo-modules-core';
 
 interface AtvCertNative {
   installIdentity(p12Base64: string, password: string, alias: string): Promise<boolean>;
+  /** Available on Android only. iOS still uses node-forge in JS. */
+  generateRsaKeyPair?(): Promise<{ privateKeyPem: string; publicKeyPem: string }>;
 }
 
 interface AtvTlsNative {
@@ -20,6 +22,21 @@ export async function installIdentity(
   alias: string,
 ): Promise<void> {
   await AtvCert.installIdentity(p12Base64, password, alias);
+}
+
+/**
+ * Generate a 2048-bit RSA keypair natively. Android-only — ~1–3 s on modern
+ * hardware vs. 30–180 s for the pure-JS node-forge fallback. Returns the
+ * private key in PKCS#8 PEM and the public key in SubjectPublicKeyInfo PEM.
+ *
+ * Throws on iOS or any platform that doesn't expose the native method —
+ * callers should guard with `Platform.OS === 'android'`.
+ */
+export async function generateRsaKeyPair(): Promise<{ privateKeyPem: string; publicKeyPem: string }> {
+  if (!AtvCert.generateRsaKeyPair) {
+    throw new Error('generateRsaKeyPair is not available on this platform');
+  }
+  return AtvCert.generateRsaKeyPair();
 }
 
 /** Generate a UUID v4 (RFC 4122 random-based). */

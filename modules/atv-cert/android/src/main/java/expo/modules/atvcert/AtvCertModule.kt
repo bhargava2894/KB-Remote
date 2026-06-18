@@ -9,6 +9,7 @@ import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 import org.json.JSONObject
 import java.io.ByteArrayInputStream
+import java.security.KeyPairGenerator
 import java.security.KeyStore
 
 private const val PREFS_NAME = "atv_cert_store"
@@ -74,5 +75,25 @@ class AtvCertModule : Module() {
       android.util.Log.i("AtvCert", "Installed identity alias=$alias bytes=${p12Bytes.size}")
       true
     }
+
+    AsyncFunction("generateRsaKeyPair") {
+      val started = System.currentTimeMillis()
+      val generator = KeyPairGenerator.getInstance("RSA")
+      generator.initialize(2048)
+      val keyPair = generator.generateKeyPair()
+
+      val privatePem = encodePem("PRIVATE KEY", keyPair.private.encoded)
+      val publicPem = encodePem("PUBLIC KEY", keyPair.public.encoded)
+      val elapsed = System.currentTimeMillis() - started
+      android.util.Log.i("AtvCert", "Generated 2048-bit RSA keypair in ${elapsed}ms")
+
+      mapOf("privateKeyPem" to privatePem, "publicKeyPem" to publicPem)
+    }
   }
+}
+
+private fun encodePem(label: String, der: ByteArray): String {
+  val b64 = Base64.encodeToString(der, Base64.NO_WRAP)
+  val wrapped = b64.chunked(64).joinToString("\n")
+  return "-----BEGIN $label-----\n$wrapped\n-----END $label-----\n"
 }
