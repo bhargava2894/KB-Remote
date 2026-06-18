@@ -14,8 +14,8 @@ interface DPadProps {
   onOk: () => void;
 }
 
-const ARM = 78;
-const CENTER = 88;
+const ARM = 60;
+const CENTER = 78;
 
 export function DPad({ onUp, onDown, onLeft, onRight, onOk }: DPadProps) {
   return (

@@ -114,13 +114,13 @@ export function RemoteScreen({ navigation }: Props) {
       <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
         {/* Header */}
         <View style={styles.header}>
-          <GlassButton
-            variant="danger"
+          <Pressable
             onPress={() => sendKey(KeyCode.POWER)}
-            icon={<Ionicons name="power" size={18} color="#FF6B6B" />}
-            round
-            size={40}
-          />
+            style={styles.powerButton}
+            accessibilityLabel="Power"
+          >
+            <Ionicons name="power" size={20} color="#FF6B6B" />
+          </Pressable>
           <View style={styles.titleBlock}>
             <Text style={styles.title} numberOfLines={1}>{titleText}</Text>
             <Text style={styles.subtitle}>
@@ -158,16 +158,20 @@ export function RemoteScreen({ navigation }: Props) {
         {/* D-pad zone */}
         <View style={styles.dpadZone}>
           <View style={styles.sideCol}>
-            <GlassButton
-              label="Home"
-              icon={<Ionicons name="home" size={18} color={colors.text} />}
+            <Pressable
               onPress={() => sendKey(KeyCode.HOME)}
-            />
-            <GlassButton
-              label="Menu"
-              icon={<Ionicons name="ellipsis-horizontal" size={18} color={colors.text} />}
+              style={styles.sideBtn}
+              accessibilityLabel="Home"
+            >
+              <Ionicons name="home" size={22} color={colors.text} />
+            </Pressable>
+            <Pressable
               onPress={() => sendKey(KeyCode.MENU)}
-            />
+              style={styles.sideBtn}
+              accessibilityLabel="Menu"
+            >
+              <Ionicons name="ellipsis-horizontal" size={22} color={colors.text} />
+            </Pressable>
           </View>
           <DPad
             onUp={() => sendKey(KeyCode.DPAD_UP)}
@@ -177,16 +181,20 @@ export function RemoteScreen({ navigation }: Props) {
             onOk={() => sendKey(KeyCode.DPAD_CENTER)}
           />
           <View style={styles.sideCol}>
-            <GlassButton
-              label="Back"
-              icon={<Ionicons name="arrow-back" size={18} color={colors.text} />}
+            <Pressable
               onPress={() => sendKey(KeyCode.BACK)}
-            />
-            <GlassButton
-              label="Guide"
-              icon={<Ionicons name="tv-outline" size={18} color={colors.text} />}
+              style={styles.sideBtn}
+              accessibilityLabel="Back"
+            >
+              <Ionicons name="arrow-back" size={22} color={colors.text} />
+            </Pressable>
+            <Pressable
               onPress={() => sendKey(KeyCode.GUIDE)}
-            />
+              style={styles.sideBtn}
+              accessibilityLabel="Guide"
+            >
+              <Ionicons name="tv-outline" size={22} color={colors.text} />
+            </Pressable>
           </View>
         </View>
 
@@ -267,6 +275,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  powerButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 92, 92, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 92, 92, 0.35)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   actionsRow: {
     flexDirection: 'row',
     gap: spacing.sm,
@@ -274,12 +292,22 @@ const styles = StyleSheet.create({
   dpadZone: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    justifyContent: 'center',
+    justifyContent: 'space-between',
   },
   sideCol: {
-    width: 64,
-    gap: spacing.sm,
+    flexShrink: 0,
+    gap: spacing.md,
+    alignItems: 'center',
+  },
+  sideBtn: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    backgroundColor: colors.glassFill,
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   bottomRow: {
     flexDirection: 'row',
