@@ -8,7 +8,6 @@
  * Generated once per app install. Persisted in expo-secure-store.
  */
 import forge from 'node-forge';
-import { Platform } from 'react-native';
 import { generateRsaKeyPair as nativeGenerateRsaKeyPair } from 'atv-cert';
 
 export interface ClientCert {
@@ -19,19 +18,18 @@ export interface ClientCert {
 }
 
 /**
- * Returns an RSA keypair. Android: native (hardware-accelerated). iOS: node-forge.
- * Falls back to node-forge if the native call ever throws.
+ * Returns an RSA keypair. Native on both platforms — Android uses
+ * KeyPairGenerator (~2 s), iOS uses SecKeyCreateRandomKey (~1 s).
+ * Falls back to pure-JS node-forge if the native call throws for any reason.
  */
 async function generateKeyPair(): Promise<forge.pki.rsa.KeyPair> {
-  if (Platform.OS === 'android') {
-    try {
-      const { privateKeyPem } = await nativeGenerateRsaKeyPair();
-      const privateKey = forge.pki.privateKeyFromPem(privateKeyPem) as forge.pki.rsa.PrivateKey;
-      const publicKey = forge.pki.rsa.setPublicKey(privateKey.n, privateKey.e);
-      return { publicKey, privateKey };
-    } catch (e) {
-      console.log('[atvCert] native keygen failed, falling back to node-forge:', e);
-    }
+  try {
+    const { privateKeyPem } = await nativeGenerateRsaKeyPair();
+    const privateKey = forge.pki.privateKeyFromPem(privateKeyPem) as forge.pki.rsa.PrivateKey;
+    const publicKey = forge.pki.rsa.setPublicKey(privateKey.n, privateKey.e);
+    return { publicKey, privateKey };
+  } catch (e) {
+    console.log('[atvCert] native keygen failed, falling back to node-forge:', e);
   }
   return new Promise<forge.pki.rsa.KeyPair>((resolve, reject) => {
     forge.pki.rsa.generateKeyPair({ bits: 2048, workers: -1 }, (err, kp) => {

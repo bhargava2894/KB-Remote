@@ -66,6 +66,56 @@ public class AtvCertModule: Module {
       }
       return true
     }
+
+    AsyncFunction("generateRsaKeyPair") { () -> [String: String] in
+      let started = Date()
+      let attributes: [String: Any] = [
+        kSecAttrKeyType as String: kSecAttrKeyTypeRSA,
+        kSecAttrKeySizeInBits as String: 2048,
+        kSecAttrIsPermanent as String: false,
+      ]
+
+      var error: Unmanaged<CFError>?
+      guard let privateKey = SecKeyCreateRandomKey(attributes as CFDictionary, &error) else {
+        throw GenerateKeyError.creationFailed(
+          (error?.takeRetainedValue() as Error?)?.localizedDescription ?? "unknown"
+        )
+      }
+      guard let publicKey = SecKeyCopyPublicKey(privateKey) else {
+        throw GenerateKeyError.publicKeyExtractionFailed
+      }
+      guard let privateData = SecKeyCopyExternalRepresentation(privateKey, &error) as Data? else {
+        throw GenerateKeyError.exportFailed(
+          (error?.takeRetainedValue() as Error?)?.localizedDescription ?? "unknown"
+        )
+      }
+      guard let publicData = SecKeyCopyExternalRepresentation(publicKey, &error) as Data? else {
+        throw GenerateKeyError.exportFailed(
+          (error?.takeRetainedValue() as Error?)?.localizedDescription ?? "unknown"
+        )
+      }
+
+      let privatePem = AtvCertModule.encodePem(label: "RSA PRIVATE KEY", der: privateData)
+      let publicPem = AtvCertModule.encodePem(label: "RSA PUBLIC KEY", der: publicData)
+
+      let elapsedMs = Int(Date().timeIntervalSince(started) * 1000)
+      NSLog("[AtvCert] Generated 2048-bit RSA keypair in %dms", elapsedMs)
+
+      return ["privateKeyPem": privatePem, "publicKeyPem": publicPem]
+    }
+  }
+
+  private static func encodePem(label: String, der: Data) -> String {
+    let base64 = der.base64EncodedString()
+    var wrapped = ""
+    var index = base64.startIndex
+    while index < base64.endIndex {
+      let end = base64.index(index, offsetBy: 64, limitedBy: base64.endIndex) ?? base64.endIndex
+      wrapped += base64[index..<end]
+      wrapped += "\n"
+      index = end
+    }
+    return "-----BEGIN \(label)-----\n\(wrapped)-----END \(label)-----\n"
   }
 }
 
@@ -83,6 +133,20 @@ enum InstallError: Error, LocalizedError {
     case .noIdentity: return "PKCS#12 imported but contained no identity"
     case .keychainAddFailed(let status): return "SecItemAdd failed: \(status)"
     case .verificationFailed(let status): return "Identity lookup by alias after install failed: \(status)"
+    }
+  }
+}
+
+enum GenerateKeyError: Error, LocalizedError {
+  case creationFailed(String)
+  case publicKeyExtractionFailed
+  case exportFailed(String)
+
+  var errorDescription: String? {
+    switch self {
+    case .creationFailed(let msg): return "SecKeyCreateRandomKey failed: \(msg)"
+    case .publicKeyExtractionFailed: return "SecKeyCopyPublicKey returned nil"
+    case .exportFailed(let msg): return "SecKeyCopyExternalRepresentation failed: \(msg)"
     }
   }
 }
