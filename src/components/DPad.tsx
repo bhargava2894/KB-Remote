@@ -1,6 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, Pressable, Text } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import * as Haptics from 'expo-haptics';
 import { colors } from '../theme/colors';
 import { RemoteButton } from './RemoteButton';
 
@@ -12,8 +14,8 @@ interface DPadProps {
   onOk: () => void;
 }
 
-const ARM = 78;
-const CENTER = 88;
+const ARM = 60;
+const CENTER = 78;
 
 export function DPad({ onUp, onDown, onLeft, onRight, onOk }: DPadProps) {
   return (
@@ -27,6 +29,7 @@ export function DPad({ onUp, onDown, onLeft, onRight, onOk }: DPadProps) {
           repeat
           width={ARM}
           height={ARM}
+          bg={colors.glassFill}
           style={styles.arm}
         />
         <View style={styles.spacer} />
@@ -39,16 +42,26 @@ export function DPad({ onUp, onDown, onLeft, onRight, onOk }: DPadProps) {
           repeat
           width={ARM}
           height={ARM}
+          bg={colors.glassFill}
           style={styles.arm}
         />
-        <RemoteButton
-          label="OK"
-          onPress={onOk}
-          size={CENTER}
-          round
-          bg={colors.accent}
-          style={styles.center}
-        />
+        <View style={styles.okWrap}>
+          <LinearGradient
+            colors={[colors.accent, colors.accentPurple]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={StyleSheet.absoluteFill}
+          />
+          <Pressable
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+              onOk();
+            }}
+            style={({ pressed }) => [styles.okPress, pressed && styles.okPressed]}
+          >
+            <Text style={styles.okText}>OK</Text>
+          </Pressable>
+        </View>
         <RemoteButton
           accessibilityLabel="Right"
           icon={<Ionicons name="chevron-forward" size={28} color={colors.text} />}
@@ -56,6 +69,7 @@ export function DPad({ onUp, onDown, onLeft, onRight, onOk }: DPadProps) {
           repeat
           width={ARM}
           height={ARM}
+          bg={colors.glassFill}
           style={styles.arm}
         />
       </View>
@@ -68,6 +82,7 @@ export function DPad({ onUp, onDown, onLeft, onRight, onOk }: DPadProps) {
           repeat
           width={ARM}
           height={ARM}
+          bg={colors.glassFill}
           style={styles.arm}
         />
         <View style={styles.spacer} />
@@ -86,10 +101,35 @@ const styles = StyleSheet.create({
   },
   arm: {
     margin: 4,
+    borderColor: colors.glassBorder,
+    borderWidth: 1,
   },
-  center: {
+  okWrap: {
+    width: CENTER,
+    height: CENTER,
+    borderRadius: CENTER / 2,
     margin: 4,
-    borderColor: colors.accent,
+    overflow: 'hidden',
+    shadowColor: colors.accent,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.5,
+    shadowRadius: 16,
+    elevation: 12,
+  },
+  okPress: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  okPressed: {
+    opacity: 0.85,
+    transform: [{ scale: 0.96 }],
+  },
+  okText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: 0.4,
   },
   spacer: {
     width: ARM + 8,

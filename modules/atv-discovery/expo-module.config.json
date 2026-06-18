@@ -1,0 +1,9 @@
+{
+  "platforms": ["ios", "android"],
+  "ios": {
+    "modules": ["AtvDiscoveryModule"]
+  },
+  "android": {
+    "modules": ["expo.modules.atvdiscovery.AtvDiscoveryModule"]
+  }
+}

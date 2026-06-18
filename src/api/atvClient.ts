@@ -128,9 +128,13 @@ export class AtvPairingSession {
     if (!/^[0-9A-F]{4,6}$/.test(cleaned)) {
       throw new Error('Code must be 4-6 hex characters');
     }
-    // The TV displays e.g. "A1B2": the nonce we hash is the last byte ("B2").
-    const nonceHex = cleaned.slice(-2);
-    const nonce = new Uint8Array([parseInt(nonceHex, 16)]);
+    // The TV displays e.g. "1A2B3C" (6 chars) or "A1B2" (4 chars).
+    // The nonce we hash is everything except the first byte (first 2 hex chars).
+    const nonceHex = cleaned.slice(2);
+    const nonce = new Uint8Array(nonceHex.length / 2);
+    for (let i = 0; i < nonceHex.length; i += 2) {
+      nonce[i / 2] = parseInt(nonceHex.slice(i, i + 2), 16);
+    }
 
     const sha = forge.md.sha256.create();
     sha.update(uint8ToBinary(this.clientPubKey.modulus));
@@ -144,7 +148,11 @@ export class AtvPairingSession {
 
     await new Promise<void>((resolve, reject) => {
       this.waiters.onDone = (err) => (err ? reject(err) : resolve());
-      this.sendPairingMessage({ pairingSecret: { secret } });
+      this.sendPairingMessage({
+        protocolVersion: 2,
+        status: PAIRING_STATUS_OK,
+        pairingSecret: { secret },
+      });
     });
   }
 
@@ -175,7 +183,7 @@ export class AtvPairingSession {
       status: PAIRING_STATUS_OK,
       pairingOption: {
         preferredRole: 1, // ROLE_TYPE_INPUT
-        outputEncodings: [{ type: 3, symbolLength: 4 }], // HEXADECIMAL, 4-symbol
+        outputEncodings: [{ type: 3, symbolLength: 6 }], // HEXADECIMAL, 6-symbol
       },
     });
   }
@@ -185,7 +193,7 @@ export class AtvPairingSession {
       protocolVersion: 2,
       status: PAIRING_STATUS_OK,
       pairingConfiguration: {
-        encoding: { type: 3, symbolLength: 4 },
+        encoding: { type: 3, symbolLength: 6 },
         clientRole: 1,
       },
     });
@@ -214,6 +222,7 @@ export class AtvPairingSession {
       return;
     }
     if (this.step === 'option_ack' && obj.pairingOption) {
+      console.log('[atvClient] TV pairingOption:', JSON.stringify(obj.pairingOption));
       // TV echoes its supported pairing options; reply with our config.
       this.sendPairingConfiguration();
       return;
@@ -270,6 +279,7 @@ export interface RemoteListener {
   onPower?: (active: boolean) => void;
   onVolume?: (level: number, max: number, muted: boolean) => void;
   onCurrentApp?: (appLink: string) => void;
+  onDeviceInfo?: (info: { model: string; vendor: string }) => void;
 }
 
 export class AtvRemoteClient {
@@ -280,6 +290,7 @@ export class AtvRemoteClient {
   private wantConnected = false;
   private listener: RemoteListener = {};
   private lastCommand: { payload: object; time: number } | null = null;
+  public currentDeviceInfo: { model: string; vendor: string } | null = null;
 
   constructor(private host: string, private certs: PairingCerts) {}
 
@@ -319,6 +330,13 @@ export class AtvRemoteClient {
   }
   sendKeyUp(keyCode: number): void {
     this.sendRemote({ remoteKeyInject: { keyCode, direction: 2 /* END_LONG */ } });
+  }
+
+  /** Launch a streaming app on the TV by URI (e.g. https://www.netflix.com/title). */
+  launchApp(uri: string): void {
+    this.sendRemote({
+      remoteAppLinkLaunchRequest: { appLink: uri },
+    });
   }
 
   private openSocket(): void {
@@ -427,6 +445,12 @@ export class AtvRemoteClient {
 
     if (obj.remoteConfigure) {
       console.log('[atvClient] TV sent Configure.');
+      const info = obj.remoteConfigure.deviceInfo;
+      if (info && (info.model || info.vendor)) {
+        const parsed = { model: info.model ?? '', vendor: info.vendor ?? '' };
+        this.currentDeviceInfo = parsed;
+        this.listener.onDeviceInfo?.(parsed);
+      }
       return;
     }
     if (obj.remoteSetActive) {
@@ -488,7 +512,17 @@ export class AtvRemoteClient {
 }
 
 interface RemoteFrameShape {
-  remoteConfigure?: unknown;
+  remoteConfigure?: {
+    code1?: number;
+    deviceInfo?: {
+      model?: string;
+      vendor?: string;
+      unknown1?: number;
+      unknown2?: string;
+      packageName?: string;
+      appVersion?: string;
+    };
+  };
   remoteSetActive?: { active?: number };
   remoteError?: { value?: number; request?: unknown };
   remotePingRequest?: { val1?: number };

@@ -10,6 +10,8 @@ npm-debug.*
 *.orig.*
 web-build/
 .DS_Store
-ios/
-android/
+/ios/
+/android/
 .env*
+.superpowers/
+modules/*/android/build/

@@ -1,0 +1,8 @@
+{
+  "name": "atv-discovery",
+  "version": "0.1.0",
+  "description": "mDNS discovery of Android TV / Sony Bravia devices on the local network",
+  "main": "index.ts",
+  "types": "index.ts",
+  "private": true
+}
